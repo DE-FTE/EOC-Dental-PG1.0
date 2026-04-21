@@ -35,7 +35,7 @@ function mdHtml(md) {
     const l = raw.trimEnd();
     if (l.startsWith("### ")) {
       cL();
-      out.push("<h4 style='font-size:.85em;font-weight:700;margin:10px 0 3px;color:#0F766E'>" + inl(l.slice(4)) + "</h4>");
+      out.push("<h4 style='font-size:.85em;font-weight:700;margin:10px 0 3px;color:#7C3AED'>" + inl(l.slice(4)) + "</h4>");
     } else if (l.startsWith("## ")) {
       cL();
       out.push("<h3 style='font-size:.92em;font-weight:700;margin:12px 0 4px;color:#0F172A'>" + inl(l.slice(3)) + "</h3>");
@@ -188,22 +188,22 @@ function SourceChip({ src }) {
     <div
       onClick={() => setOpen((o) => !o)}
       style={{
-        background: "#F0FDFA", border: "1px solid #99F6E4",
+        background: "#F5F3FF", border: "1px solid #DDD6FE",
         borderRadius: 7, padding: "5px 9px", cursor: "pointer",
         marginBottom: 4, fontSize: 11,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#0F766E", fontWeight: 600 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#7C3AED", fontWeight: 600 }}>
         <span style={{ fontSize: 12 }}>{src.doc_type === "dental" ? "🦷" : "📋"}</span>
         <span style={{ flex: 1 }}>{src.doc_name}</span>
-        <span style={{ color: "#5EEAD4", fontSize: 10 }}>p.{src.page} · {src.section}</span>
+        <span style={{ color: "#A78BFA", fontSize: 10 }}>p.{src.page} · {src.section}</span>
         <span style={{ fontSize: 9, opacity: 0.6 }}>{open ? "▲" : "▼"}</span>
       </div>
       {open && (
         <div style={{
-          marginTop: 6, padding: "7px 8px", background: "#ECFDF5",
-          borderRadius: 5, fontSize: 11, color: "#134E4A", lineHeight: 1.65,
-          borderLeft: "2px solid #0D9488", paddingLeft: 10,
+          marginTop: 6, padding: "7px 8px", background: "#EDE9FE",
+          borderRadius: 5, fontSize: 11, color: "#4C1D95", lineHeight: 1.65,
+          borderLeft: "2px solid #7C3AED", paddingLeft: 10,
         }}>
           {src.chunk_text}
         </div>
@@ -218,7 +218,7 @@ function DocMsg({ msg }) {
   if (isU) return (
     <div style={{
       alignSelf: "flex-end", maxWidth: "80%",
-      background: "#0F766E", color: "#fff",
+      background: "#7C3AED", color: "#fff",
       padding: "9px 14px", borderRadius: "12px 3px 12px 12px",
       fontSize: 13, lineHeight: 1.55,
     }}>
@@ -267,109 +267,158 @@ function DocMsg({ msg }) {
   );
 }
 
-// ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar({ collapsed, onToggle }) {
+// ─── SIDEBAR — ChatGPT-style history ─────────────────────────────────────────
+const MOCK_HISTORY = [
+  { id: "h1", label: "OOP max for in-network?",        time: "2h ago" },
+  { id: "h2", label: "Dental implant coverage",        time: "Yesterday" },
+  { id: "h3", label: "Prior auth for specialist",      time: "Yesterday" },
+  { id: "h4", label: "Emergency care outside area",    time: "Mon" },
+  { id: "h5", label: "Ortho exclusions explained",     time: "Mon" },
+  { id: "h6", label: "Annual dental max limits",       time: "Sun" },
+  { id: "h7", label: "Waiting periods major dental",   time: "Sun" },
+  { id: "h8", label: "Oral surgery cost-sharing",      time: "Last week" },
+];
+
+function Sidebar({ collapsed, onToggle, activeHistory, onSelectHistory, onNewChat }) {
   return collapsed ? (
     <aside style={{
-      width: 38, background: "#0D1929", display: "flex",
+      width: 44, background: "#fff", display: "flex",
       flexDirection: "column", alignItems: "center",
-      flexShrink: 0, borderRight: "1px solid #1E3350",
+      flexShrink: 0, borderRight: "1px solid #E5E7EB",
     }}>
-      <button
-        onClick={onToggle}
-        title="Expand"
-        style={{
-          width: "100%", padding: "11px 0", background: "transparent",
-          border: "none", borderBottom: "1px solid #1E3350",
-          cursor: "pointer", color: "#94A3B8", fontSize: 15,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        &#9776;
-      </button>
+      {/* Logo icon + expand */}
       <div style={{
-        flex: 1, display: "flex", flexDirection: "column",
-        alignItems: "center", gap: 3, paddingTop: 10,
+        padding: "12px 0", borderBottom: "1px solid #E5E7EB",
+        width: "100%", display: "flex", flexDirection: "column",
+        alignItems: "center", gap: 8,
       }}>
-        <button
-          title="EOC & Dental Playground"
+        <img
+          src="https://drlobbystorer1.blob.core.windows.net/images/HWAI_Logo_Full.svg?v=1"
+          alt="HWAI"
+          style={{ height: 20, width: 20, objectFit: "contain", filter: "hue-rotate(200deg)" }}
+          onError={(e) => { e.target.style.display = "none"; }}
+        />
+        <button onClick={onToggle} title="Expand sidebar"
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            color: "#9CA3AF", fontSize: 16, lineHeight: 1, padding: 0,
+          }}>
+          ›
+        </button>
+      </div>
+      <div style={{ paddingTop: 10 }}>
+        <button onClick={onNewChat} title="New chat"
           style={{
             width: 28, height: 28, borderRadius: 6,
-            background: "#0F766E", border: "none", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13,
-          }}
-        >
-          📚
+            background: "#F5F3FF", border: "1px solid #DDD6FE",
+            cursor: "pointer", display: "flex", alignItems: "center",
+            justifyContent: "center", fontSize: 14, color: "#7C3AED",
+          }}>
+          +
         </button>
       </div>
     </aside>
   ) : (
     <aside style={{
-      width: 210, background: "#0D1929", display: "flex",
-      flexDirection: "column", flexShrink: 0, overflowY: "auto",
+      width: 220, background: "#fff", display: "flex",
+      flexDirection: "column", flexShrink: 0,
+      borderRight: "1px solid #E5E7EB",
     }}>
-      {/* Logo & name */}
+      {/* Top: Logo + branding */}
       <div style={{
-        padding: "13px 12px 9px", borderBottom: "1px solid #1E3350",
-        flexShrink: 0, display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+        padding: "14px 14px 10px", borderBottom: "1px solid #F3F4F6",
+        flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <img
             src="https://drlobbystorer1.blob.core.windows.net/images/HWAI_Logo_Full.svg?v=1"
             alt="HealthWorksAI"
-            style={{ height: 28, width: "auto", display: "block", marginBottom: 5, filter: "brightness(0) invert(1)" }}
+            style={{ height: 22, width: "auto", display: "block" }}
+            onError={(e) => {
+              e.target.style.display = "none";
+              e.target.nextSibling.style.display = "block";
+            }}
           />
-          <div style={{ color: "#F1F5F9", fontWeight: 800, fontSize: 13, lineHeight: 1.2 }}>
-            {C.app}
-          </div>
-          <div style={{ color: "#94A3B8", fontSize: 9, marginTop: 2 }}>
-            EOC & Dental Document Intelligence
-          </div>
+          <span style={{ display: "none", fontWeight: 800, fontSize: 11, color: "#1F2937" }}>
+            HealthWorksAI
+          </span>
         </div>
-        <button
-          onClick={onToggle}
-          title="Collapse"
+        <button onClick={onToggle} title="Collapse"
           style={{
-            background: "transparent", border: "none", cursor: "pointer",
-            color: "#7C8FA6", fontSize: 13, padding: 2, marginTop: 1, lineHeight: 1,
-          }}
-        >
-          &#8249;&#8249;
+            background: "none", border: "none", cursor: "pointer",
+            color: "#9CA3AF", fontSize: 16, lineHeight: 1, padding: 2,
+          }}>
+          ‹
         </button>
       </div>
 
-      {/* Nav item — always active */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "9px 12px" }}>
-        <div style={{
-          color: "#0F766E", fontSize: 8.5, fontWeight: 700,
-          textTransform: "uppercase", letterSpacing: ".1em",
-          marginBottom: 6, padding: "0 5px",
-          display: "flex", alignItems: "center", gap: 5,
-        }}>
-          <span style={{ fontSize: 9 }}>✦</span>
-          Document Intelligence
-        </div>
+      {/* New chat button */}
+      <div style={{ padding: "10px 12px 6px", flexShrink: 0 }}>
+        <button onClick={onNewChat} style={{
+          width: "100%", display: "flex", alignItems: "center", gap: 7,
+          padding: "7px 10px", borderRadius: 8, cursor: "pointer",
+          fontFamily: "inherit", fontSize: 12, fontWeight: 600,
+          background: "#F5F3FF", color: "#7C3AED",
+          border: "1px solid #DDD6FE", transition: "all .15s",
+        }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#EDE9FE"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "#F5F3FF"; }}
+        >
+          <span style={{ fontSize: 16, fontWeight: 300, lineHeight: 1 }}>+</span>
+          New conversation
+        </button>
+      </div>
 
-        <div style={{
-          display: "flex", alignItems: "center", gap: 6,
-          width: "100%", padding: "7px 8px", marginBottom: 1,
-          borderRadius: 7, border: "none", cursor: "default",
-          background: "#0F766E28",
-          borderLeft: "2px solid #0F766E",
-          textAlign: "left",
-        }}>
-          <span style={{ fontSize: 13 }}>📚</span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#0F766E" }}>
-            EOC & Dental Playground
-          </span>
-          <div style={{ marginLeft: "auto", width: 4, height: 4, borderRadius: "50%", background: "#0F766E", flexShrink: 0 }}/>
-        </div>
+      {/* History label */}
+      <div style={{
+        padding: "6px 14px 4px", fontSize: 10, fontWeight: 700,
+        color: "#9CA3AF", textTransform: "uppercase", letterSpacing: ".08em",
+        flexShrink: 0,
+      }}>
+        Recent
+      </div>
+
+      {/* Conversation list */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "2px 8px 8px" }}>
+        {MOCK_HISTORY.map((h) => {
+          const isActive = activeHistory === h.id;
+          return (
+            <div key={h.id} onClick={() => onSelectHistory(h.id)}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "7px 8px", borderRadius: 7, marginBottom: 1,
+                cursor: "pointer", transition: "background .12s",
+                background: isActive ? "#F5F3FF" : "transparent",
+                borderLeft: isActive ? "2px solid #7C3AED" : "2px solid transparent",
+              }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "#F9FAFB"; }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  fontSize: 12, color: isActive ? "#7C3AED" : "#374151",
+                  fontWeight: isActive ? 600 : 400,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  maxWidth: 148,
+                }}>
+                  {h.label}
+                </div>
+                <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 1 }}>{h.time}</div>
+              </div>
+              {isActive && (
+                <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#7C3AED", flexShrink: 0 }}/>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Footer */}
-      <div style={{ padding: "7px 12px", borderTop: "1px solid #1E3350", color: "#6B8FAD", fontSize: 9, flexShrink: 0 }}>
-        <div>Medicare Advantage · EOC Intelligence</div>
-        <div style={{ marginTop: 1 }}>v{C.ver} · {C.co}</div>
+      <div style={{
+        padding: "8px 14px", borderTop: "1px solid #F3F4F6",
+        fontSize: 9, color: "#9CA3AF", flexShrink: 0,
+      }}>
+        <div>v{C.ver} · {C.co}</div>
       </div>
     </aside>
   );
@@ -393,27 +442,27 @@ function DocStatsBanner({ salesRegion, state, county, planType, snpType, payor, 
   return (
     <div style={{
       display: "flex", alignItems: "center", justifyContent: "space-between",
-      padding: "8px 20px", background: "#F0FDFA",
-      borderBottom: "1px solid #99F6E4", flexShrink: 0, gap: 12,
+      padding: "8px 20px", background: "#F5F3FF",
+      borderBottom: "1px solid #DDD6FE", flexShrink: 0, gap: 12,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#0D9488" }}/>
-          <span style={{ fontSize: 11, fontWeight: 700, color: "#0F766E" }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#7C3AED" }}/>
+          <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED" }}>
             {totalCount.toLocaleString()} documents available
           </span>
         </div>
-        <div style={{ width: 1, height: 13, background: "#99F6E4" }}/>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#0F766E" }}>
+        <div style={{ width: 1, height: 13, background: "#DDD6FE" }}/>
+        <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED" }}>
           {eocCount.toLocaleString()} EOCs available
         </span>
-        <div style={{ width: 1, height: 13, background: "#99F6E4" }}/>
-        <span style={{ fontSize: 11, color: "#5EEAD4" }}>
-          Filtered by: <strong style={{ color: "#0F766E" }}>{label}</strong>
+        <div style={{ width: 1, height: 13, background: "#DDD6FE" }}/>
+        <span style={{ fontSize: 11, color: "#A78BFA" }}>
+          Filtered by: <strong style={{ color: "#7C3AED" }}>{label}</strong>
         </span>
       </div>
       <span style={{
-        fontSize: 10, color: "#0D9488", background: "#CCFBF1",
+        fontSize: 10, color: "#7C3AED", background: "#EDE9FE",
         padding: "2px 9px", borderRadius: 20, fontWeight: 600,
       }}>
         RAG-powered · citations grounded in source docs
@@ -572,13 +621,13 @@ function DocPlayground() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {DOC_PILLS.map((p, i) => (
                 <button key={i} onClick={() => ask(p)} style={{
-                  background: "#F0FDFA", border: "1px solid #99F6E4",
+                  background: "#F5F3FF", border: "1px solid #DDD6FE",
                   borderRadius: 20, padding: "5px 13px",
-                  fontSize: 11.5, color: "#0F766E",
+                  fontSize: 11.5, color: "#7C3AED",
                   cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
                 }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = "#CCFBF1"; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = "#F0FDFA"; }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "#EDE9FE"; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "#F5F3FF"; }}
                 >
                   {p}
                 </button>
@@ -614,7 +663,7 @@ function DocPlayground() {
         <div style={{
           display: "flex", gap: 8, alignItems: "flex-end",
           background: "#F8FAFC", borderRadius: 12,
-          border: "1.5px solid " + (busy ? "#0F766E88" : "#E2E8F0"),
+          border: "1.5px solid " + (busy ? "#7C3AED88" : "#E2E8F0"),
           padding: "8px 14px", transition: "border-color .2s",
         }}>
           <textarea
@@ -643,7 +692,7 @@ function DocPlayground() {
             onClick={() => { ask(query); setQuery(""); }}
             disabled={busy || !query.trim()}
             style={{
-              background: busy || !query.trim() ? "#E2E8F0" : "#0F766E",
+              background: busy || !query.trim() ? "#E2E8F0" : "#7C3AED",
               color: busy || !query.trim() ? "#94A3B8" : "#fff",
               border: "none", borderRadius: 8, padding: "7px 18px",
               cursor: busy || !query.trim() ? "not-allowed" : "pointer",
@@ -665,8 +714,12 @@ function DocPlayground() {
 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [collapsed,    setCollapsed]    = useState(false);
-  const [integratePC,  setIntegratePC]  = useState(false);
+  const [collapsed,     setCollapsed]     = useState(false);
+  const [integratePC,   setIntegratePC]   = useState(false);
+  const [activeHistory, setActiveHistory] = useState(null);
+
+  function handleNewChat() { setActiveHistory(null); }
+  function handleSelectHistory(id) { setActiveHistory(id); }
 
   return (
     <div style={{
@@ -675,7 +728,13 @@ export default function App() {
       fontSize: 14, overflow: "hidden", background: "#F8FAFC",
     }}>
       <GStyle/>
-      <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)}/>
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed((c) => !c)}
+        activeHistory={activeHistory}
+        onSelectHistory={handleSelectHistory}
+        onNewChat={handleNewChat}
+      />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
         {/* Top bar */}
@@ -691,46 +750,46 @@ export default function App() {
               EOC & Dental Playground
             </span>
             <span style={{
-              background: "#F0FDFA", color: "#0F766E",
+              background: "#F5F3FF", color: "#7C3AED",
               fontSize: 10, padding: "2px 8px",
               borderRadius: 20, fontWeight: 600,
-              border: "1px solid #99F6E4",
+              border: "1px solid #DDD6FE",
             }}>
               RAG-powered
             </span>
           </div>
 
-          {/* Right side: status + toggle */}
+          {/* Right side: status + Integrate PC toggle */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#10B981" }}/>
+              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#8B5CF6" }}/>
               <span style={{ color: "#64748B", fontSize: 11 }}>
                 {C.co} · {C.app}
               </span>
             </div>
 
-            {/* Integrate PC toggle */}
-            <div style={{
-              display: "flex", alignItems: "center", gap: 7,
-              padding: "4px 10px", borderRadius: 20,
-              background: integratePC ? "#F0FDFA" : "#F8FAFC",
-              border: "1px solid " + (integratePC ? "#99F6E4" : "#E2E8F0"),
-              cursor: "pointer", transition: "all .18s",
-            }}
+            {/* Integrate PC toggle — purple */}
+            <div
               onClick={() => setIntegratePC((v) => !v)}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                padding: "4px 12px", borderRadius: 20, cursor: "pointer",
+                transition: "all .18s", userSelect: "none",
+                background: integratePC ? "#7C3AED" : "#F5F3FF",
+                border: "1px solid " + (integratePC ? "#7C3AED" : "#DDD6FE"),
+              }}
             >
               <span style={{ fontSize: 10 }}>🔗</span>
               <span style={{
                 fontSize: 11, fontWeight: 600,
-                color: integratePC ? "#0F766E" : "#64748B",
+                color: integratePC ? "#fff" : "#7C3AED",
               }}>
                 Integrate PC
               </span>
-              {/* pill toggle */}
               <span style={{
                 width: 28, height: 15, borderRadius: 8,
                 display: "inline-flex", alignItems: "center", padding: "0 2px",
-                background: integratePC ? "#0D9488" : "#CBD5E1",
+                background: integratePC ? "rgba(255,255,255,0.35)" : "#DDD6FE",
                 transition: "background .2s", flexShrink: 0,
               }}>
                 <span style={{
