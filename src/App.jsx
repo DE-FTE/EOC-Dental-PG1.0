@@ -72,9 +72,18 @@ function Dots() {
 }
 
 // ─── FILTER OPTIONS ───────────────────────────────────────────────────────────
+const SALES_REGIONS = ["ALL"];
+
 const STATES = [
-  "All States", "California", "Florida", "Texas", "New York", "Georgia",
-  "Ohio", "Pennsylvania", "Michigan", "North Carolina", "Illinois",
+  "All States", "Alabama", "Alaska", "Arizona", "Arkansas", "California",
+  "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Hawaii",
+  "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana",
+  "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi",
+  "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey",
+  "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma",
+  "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+  "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+  "West Virginia", "Wisconsin", "Wyoming",
 ];
 
 const COUNTIES_BY_STATE = {
@@ -91,11 +100,37 @@ const COUNTIES_BY_STATE = {
   "Illinois":      ["All Counties","Cook","DuPage","Lake","Will","Kane"],
 };
 
+// Medicare Advantage plan types (CMS-sourced)
+const PLAN_TYPES = [
+  "All Plan Types",
+  "HMO",
+  "HMO-POS",
+  "Local HMO",
+  "Local HMO-POS",
+  "PPO",
+  "Regional PPO",
+  "PFFS",
+  "MSA",
+  "Cost",
+  "PACE",
+];
+
+const SNP_TYPES = [
+  "All SNP Types",
+  "D-SNP",
+  "I-SNP",
+  "C-SNP",
+  "Non-SNP",
+];
+
 const PAYORS = [
   "All Payors","Humana","UnitedHealthcare","Aetna / CVS Health",
   "Elevance Health","Centene","Kaiser Permanente","Devoted Health",
   "Molina Healthcare","Cigna","SCAN Group",
 ];
+
+// Plan Name — no values yet, populated dynamically
+const PLAN_NAMES = ["All Plan Names"];
 
 // ─── STARTER PILLS ────────────────────────────────────────────────────────────
 const DOC_PILLS = [
@@ -341,11 +376,15 @@ function Sidebar({ collapsed, onToggle }) {
 }
 
 // ─── DOC STATS SUMMARY BAR ───────────────────────────────────────────────────
-function DocStatsBanner({ state, county, payor, stats }) {
+function DocStatsBanner({ salesRegion, state, county, planType, snpType, payor, planName, stats }) {
   const label = [
+    salesRegion && salesRegion !== "ALL" ? salesRegion : null,
     state !== "All States" ? state : null,
     county !== "All Counties" ? county : null,
+    planType !== "All Plan Types" ? planType : null,
+    snpType !== "All SNP Types" ? snpType : null,
     payor !== "All Payors" ? payor : null,
+    planName && planName !== "All Plan Names" ? planName : null,
   ].filter(Boolean).join(" · ") || "All Markets";
 
   const eocCount   = stats ? stats.eoc   : 1000;
@@ -383,11 +422,16 @@ function DocStatsBanner({ state, county, payor, stats }) {
   );
 }
 
+
 // ─── DOC PLAYGROUND ──────────────────────────────────────────────────────────
 function DocPlayground() {
-  const [state,  setState]  = useState("All States");
-  const [county, setCounty] = useState("All Counties");
-  const [payor,  setPayor]  = useState("All Payors");
+  const [salesRegion, setSalesRegion] = useState("ALL");
+  const [state,       setState]       = useState("All States");
+  const [county,      setCounty]      = useState("All Counties");
+  const [planType,    setPlanType]    = useState("All Plan Types");
+  const [snpType,     setSnpType]     = useState("All SNP Types");
+  const [payor,       setPayor]       = useState("All Payors");
+  const [planName,    setPlanName]    = useState("All Plan Names");
   const [query,  setQuery]  = useState("");
   const [msgs,   setMsgs]   = useState([]);
   const [busy,   setBusy]   = useState(false);
@@ -404,7 +448,7 @@ function DocPlayground() {
   async function ask(text) {
     if (!text.trim() || busy) return;
     setErr(null);
-    const filters = { state, county, payor };
+    const filters = { salesRegion, state, county, planType, snpType, payor, planName };
     const um  = { id: uid(), role: "user",      content: text, ts: new Date() };
     const lid = uid();
     const lm  = { id: lid, role: "assistant", content: "", sources: [], loading: true, ts: new Date() };
@@ -446,37 +490,70 @@ function DocPlayground() {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-      {/* ── Playground header ── */}
+      {/* ── Playground header — filter bar ── */}
       <div style={{
         padding: "10px 20px", background: "#fff",
         borderBottom: "1px solid #E2E8F0", flexShrink: 0,
-        display: "flex", alignItems: "center", gap: 12, minHeight: 54,
+        display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap",
+        minHeight: 58,
       }}>
-        {/* Filters — always visible, left-aligned */}
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
-          <div style={{ width: 118 }}>
-            <span style={labelStyle}>State</span>
-            <select value={state} onChange={(e) => handleStateChange(e.target.value)} style={selStyle}>
-              {STATES.map((s) => <option key={s}>{s}</option>)}
-            </select>
-          </div>
-          <div style={{ width: 140 }}>
-            <span style={labelStyle}>County</span>
-            <select value={county} onChange={(e) => setCounty(e.target.value)} style={selStyle}>
-              {counties.map((c) => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div style={{ width: 152 }}>
-            <span style={labelStyle}>Payor</span>
-            <select value={payor} onChange={(e) => setPayor(e.target.value)} style={selStyle}>
-              {PAYORS.map((p) => <option key={p}>{p}</option>)}
-            </select>
-          </div>
+        {/* Sales Region */}
+        <div style={{ width: 108 }}>
+          <span style={labelStyle}>Sales Region</span>
+          <select value={salesRegion} onChange={(e) => setSalesRegion(e.target.value)} style={selStyle}>
+            {SALES_REGIONS.map((r) => <option key={r}>{r}</option>)}
+          </select>
+        </div>
+        {/* State */}
+        <div style={{ width: 130 }}>
+          <span style={labelStyle}>State</span>
+          <select value={state} onChange={(e) => handleStateChange(e.target.value)} style={selStyle}>
+            {STATES.map((s) => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+        {/* County */}
+        <div style={{ width: 138 }}>
+          <span style={labelStyle}>County</span>
+          <select value={county} onChange={(e) => setCounty(e.target.value)} style={selStyle}>
+            {counties.map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </div>
+        {/* Plan Type */}
+        <div style={{ width: 140 }}>
+          <span style={labelStyle}>Plan Type</span>
+          <select value={planType} onChange={(e) => setPlanType(e.target.value)} style={selStyle}>
+            {PLAN_TYPES.map((t) => <option key={t}>{t}</option>)}
+          </select>
+        </div>
+        {/* SNP Type */}
+        <div style={{ width: 118 }}>
+          <span style={labelStyle}>SNP Type</span>
+          <select value={snpType} onChange={(e) => setSnpType(e.target.value)} style={selStyle}>
+            {SNP_TYPES.map((t) => <option key={t}>{t}</option>)}
+          </select>
+        </div>
+        {/* Payor */}
+        <div style={{ width: 148 }}>
+          <span style={labelStyle}>Payor</span>
+          <select value={payor} onChange={(e) => setPayor(e.target.value)} style={selStyle}>
+            {PAYORS.map((p) => <option key={p}>{p}</option>)}
+          </select>
+        </div>
+        {/* Plan Name */}
+        <div style={{ width: 148 }}>
+          <span style={labelStyle}>Plan Name</span>
+          <select value={planName} onChange={(e) => setPlanName(e.target.value)} style={selStyle}>
+            {PLAN_NAMES.map((n) => <option key={n}>{n}</option>)}
+          </select>
         </div>
       </div>
 
       {/* ── Stats Banner ── */}
-      <DocStatsBanner state={state} county={county} payor={payor} stats={stats}/>
+      <DocStatsBanner
+        salesRegion={salesRegion} state={state} county={county}
+        planType={planType} snpType={snpType} payor={payor}
+        planName={planName} stats={stats}
+      />
 
       {/* ── Messages / Empty state ── */}
       <div style={{
