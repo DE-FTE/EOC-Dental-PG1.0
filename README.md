@@ -1,3 +1,4 @@
+# EOC-Dental-Playground1.0
 # EOC Playground · HealthWorksAI
 
 RAG-powered Evidence of Coverage & Dental document Q&A chatbot.
