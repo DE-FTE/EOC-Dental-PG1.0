@@ -384,7 +384,7 @@ function DocStatsBanner({ state, county, payor, stats }) {
 }
 
 // ─── DOC PLAYGROUND ──────────────────────────────────────────────────────────
-function DocPlayground({ showFilters }) {
+function DocPlayground() {
   const [state,  setState]  = useState("All States");
   const [county, setCounty] = useState("All Counties");
   const [payor,  setPayor]  = useState("All Payors");
@@ -398,18 +398,13 @@ function DocPlayground({ showFilters }) {
   useEffect(() => { fetchDocStats().then(setStats); }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
-  // Reset filters when toggled off
-  useEffect(() => {
-    if (!showFilters) { setState("All States"); setCounty("All Counties"); setPayor("All Payors"); }
-  }, [showFilters]);
-
   const handleStateChange = (s) => { setState(s); setCounty("All Counties"); };
   const counties = COUNTIES_BY_STATE[state] || ["All Counties"];
 
   async function ask(text) {
     if (!text.trim() || busy) return;
     setErr(null);
-    const filters = showFilters ? { state, county, payor } : {};
+    const filters = { state, county, payor };
     const um  = { id: uid(), role: "user",      content: text, ts: new Date() };
     const lid = uid();
     const lm  = { id: lid, role: "assistant", content: "", sources: [], loading: true, ts: new Date() };
@@ -455,47 +450,29 @@ function DocPlayground({ showFilters }) {
       <div style={{
         padding: "10px 20px", background: "#fff",
         borderBottom: "1px solid #E2E8F0", flexShrink: 0,
-        display: "flex", alignItems: "center", gap: 16, minHeight: 54,
+        display: "flex", alignItems: "center", gap: 12, minHeight: 54,
       }}>
-        {/* Title */}
-        <div style={{ display: "flex", alignItems: "center", gap: 9, flexShrink: 0 }}>
-          <span style={{ fontSize: 18 }}>📚</span>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "#0F172A", lineHeight: 1.2 }}>
-              EOC & Dental Playground
-            </div>
-            <div style={{ fontSize: 11, color: "#94A3B8", marginTop: 1 }}>
-              Ask plain-English questions — answers cited from source documents
-            </div>
+        {/* Filters — always visible, left-aligned */}
+        <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
+          <div style={{ width: 118 }}>
+            <span style={labelStyle}>State</span>
+            <select value={state} onChange={(e) => handleStateChange(e.target.value)} style={selStyle}>
+              {STATES.map((s) => <option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div style={{ width: 140 }}>
+            <span style={labelStyle}>County</span>
+            <select value={county} onChange={(e) => setCounty(e.target.value)} style={selStyle}>
+              {counties.map((c) => <option key={c}>{c}</option>)}
+            </select>
+          </div>
+          <div style={{ width: 152 }}>
+            <span style={labelStyle}>Payor</span>
+            <select value={payor} onChange={(e) => setPayor(e.target.value)} style={selStyle}>
+              {PAYORS.map((p) => <option key={p}>{p}</option>)}
+            </select>
           </div>
         </div>
-
-        {/* Filters — Image-2 style, shown only when toggle is ON */}
-        {showFilters && (
-          <>
-            <div style={{ width: 1, height: 36, background: "#E2E8F0", flexShrink: 0 }}/>
-            <div style={{ display: "flex", alignItems: "flex-end", gap: 12 }}>
-              <div style={{ width: 118 }}>
-                <span style={labelStyle}>State</span>
-                <select value={state} onChange={(e) => handleStateChange(e.target.value)} style={selStyle}>
-                  {STATES.map((s) => <option key={s}>{s}</option>)}
-                </select>
-              </div>
-              <div style={{ width: 140 }}>
-                <span style={labelStyle}>County</span>
-                <select value={county} onChange={(e) => setCounty(e.target.value)} style={selStyle}>
-                  {counties.map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div style={{ width: 152 }}>
-                <span style={labelStyle}>Payor</span>
-                <select value={payor} onChange={(e) => setPayor(e.target.value)} style={selStyle}>
-                  {PAYORS.map((p) => <option key={p}>{p}</option>)}
-                </select>
-              </div>
-            </div>
-          </>
-        )}
       </div>
 
       {/* ── Stats Banner ── */}
@@ -612,7 +589,7 @@ function DocPlayground({ showFilters }) {
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [collapsed,    setCollapsed]    = useState(false);
-  const [showFilters,  setShowFilters]  = useState(false);
+  const [integratePC,  setIntegratePC]  = useState(false);
 
   return (
     <div style={{
@@ -655,34 +632,34 @@ export default function App() {
               </span>
             </div>
 
-            {/* State-level analysis toggle */}
+            {/* Integrate PC toggle */}
             <div style={{
               display: "flex", alignItems: "center", gap: 7,
               padding: "4px 10px", borderRadius: 20,
-              background: showFilters ? "#F0FDFA" : "#F8FAFC",
-              border: "1px solid " + (showFilters ? "#99F6E4" : "#E2E8F0"),
+              background: integratePC ? "#F0FDFA" : "#F8FAFC",
+              border: "1px solid " + (integratePC ? "#99F6E4" : "#E2E8F0"),
               cursor: "pointer", transition: "all .18s",
             }}
-              onClick={() => setShowFilters((v) => !v)}
+              onClick={() => setIntegratePC((v) => !v)}
             >
-              <span style={{ fontSize: 10 }}>🗺️</span>
+              <span style={{ fontSize: 10 }}>🔗</span>
               <span style={{
                 fontSize: 11, fontWeight: 600,
-                color: showFilters ? "#0F766E" : "#64748B",
+                color: integratePC ? "#0F766E" : "#64748B",
               }}>
-                State-level analysis
+                Integrate PC
               </span>
               {/* pill toggle */}
               <span style={{
                 width: 28, height: 15, borderRadius: 8,
                 display: "inline-flex", alignItems: "center", padding: "0 2px",
-                background: showFilters ? "#0D9488" : "#CBD5E1",
+                background: integratePC ? "#0D9488" : "#CBD5E1",
                 transition: "background .2s", flexShrink: 0,
               }}>
                 <span style={{
                   width: 11, height: 11, borderRadius: "50%", background: "#fff",
                   display: "block", transition: "transform .2s",
-                  transform: showFilters ? "translateX(13px)" : "translateX(0)",
+                  transform: integratePC ? "translateX(13px)" : "translateX(0)",
                 }}/>
               </span>
             </div>
@@ -691,7 +668,7 @@ export default function App() {
 
         {/* Main content */}
         <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <DocPlayground showFilters={showFilters}/>
+          <DocPlayground/>
         </div>
       </div>
     </div>
