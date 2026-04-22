@@ -216,15 +216,34 @@ function SourceChip({ src }) {
 function DocMsg({ msg }) {
   const isU = msg.role === "user";
   if (isU) return (
-    <div style={{
-      alignSelf: "flex-end", maxWidth: "80%",
-      background: "#7C3AED", color: "#fff",
-      padding: "9px 14px", borderRadius: "12px 3px 12px 12px",
-      fontSize: 13, lineHeight: 1.55,
-    }}>
-      {msg.content}
-      <div style={{ fontSize: 9.5, opacity: 0.6, marginTop: 3, textAlign: "right" }}>
-        {tstr(msg.ts)}
+    <div style={{ alignSelf: "flex-end", maxWidth: "80%", display: "flex", flexDirection: "column", gap: 5, alignItems: "flex-end" }}>
+      {/* Attachment chips above bubble */}
+      {msg.attachments && msg.attachments.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "flex-end" }}>
+          {msg.attachments.map((f) => (
+            <div key={f.id} style={{
+              display: "flex", alignItems: "center", gap: 5,
+              background: "#EDE9FE", border: "1px solid #DDD6FE",
+              borderRadius: 8, padding: "4px 9px", fontSize: 11,
+            }}>
+              <span style={{ fontSize: 13 }}>
+                {/\.pdf$/i.test(f.name) ? "📄" : /\.csv$/i.test(f.name) ? "📊" : /\.txt$/i.test(f.name) ? "📝" : /\.json$/i.test(f.name) ? "📋" : /\.(png|jpe?g|gif|webp)$/i.test(f.name) ? "🖼️" : "📎"}
+              </span>
+              <span style={{ color: "#5B21B6", fontWeight: 500, maxWidth: 130, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+              <span style={{ color: "#A78BFA", fontSize: 10 }}>{f.size < 1024 ? f.size + " B" : f.size < 1048576 ? (f.size / 1024).toFixed(0) + " KB" : (f.size / 1048576).toFixed(1) + " MB"}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div style={{
+        background: "#7C3AED", color: "#fff",
+        padding: "9px 14px", borderRadius: "12px 3px 12px 12px",
+        fontSize: 13, lineHeight: 1.55,
+      }}>
+        {msg.content}
+        <div style={{ fontSize: 9.5, opacity: 0.6, marginTop: 3, textAlign: "right" }}>
+          {tstr(msg.ts)}
+        </div>
       </div>
     </div>
   );
@@ -456,10 +475,6 @@ function DocStatsBanner({ salesRegion, state, county, planType, snpType, payor, 
         <span style={{ fontSize: 11, fontWeight: 700, color: "#7C3AED" }}>
           {eocCount.toLocaleString()} EOCs available
         </span>
-        <div style={{ width: 1, height: 13, background: "#DDD6FE" }}/>
-        <span style={{ fontSize: 11, color: "#A78BFA" }}>
-          Filtered by: <strong style={{ color: "#7C3AED" }}>{label}</strong>
-        </span>
       </div>
       <span style={{
         fontSize: 10, color: "#7C3AED", background: "#EDE9FE",
@@ -486,7 +501,49 @@ function DocPlayground() {
   const [busy,   setBusy]   = useState(false);
   const [err,    setErr]    = useState(null);
   const [stats,  setStats]  = useState(null);
-  const endRef = useRef(null);
+  const [files,  setFiles]  = useState([]);
+  const endRef  = useRef(null);
+  const fileRef = useRef(null);
+
+  function handleFileChange(e) {
+    const picked = Array.from(e.target.files || []);
+    picked.forEach((file) => {
+      const isText = /\.(pdf|csv|txt|json|md)$/i.test(file.name);
+      if (isText) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          setFiles((prev) => [...prev, {
+            id: uid(), name: file.name, size: file.size,
+            type: file.type, preview: (ev.target.result || "").slice(0, 6000),
+          }]);
+        };
+        reader.readAsText(file);
+      } else {
+        setFiles((prev) => [...prev, {
+          id: uid(), name: file.name, size: file.size,
+          type: file.type, preview: null,
+        }]);
+      }
+    });
+    e.target.value = "";
+  }
+
+  function removeFile(id) { setFiles((prev) => prev.filter((f) => f.id !== id)); }
+
+  function fileIcon(name) {
+    if (/\.pdf$/i.test(name))  return "📄";
+    if (/\.csv$/i.test(name))  return "📊";
+    if (/\.txt$/i.test(name))  return "📝";
+    if (/\.json$/i.test(name)) return "📋";
+    if (/\.(png|jpe?g|gif|webp)$/i.test(name)) return "🖼️";
+    return "📎";
+  }
+
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + " B";
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
 
   useEffect(() => { fetchDocStats().then(setStats); }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
@@ -495,16 +552,29 @@ function DocPlayground() {
   const counties = COUNTIES_BY_STATE[state] || ["All Counties"];
 
   async function ask(text) {
-    if (!text.trim() || busy) return;
+    if (!text.trim() && files.length === 0) return;
+    if (busy) return;
     setErr(null);
+    // Build message — attach file names as context hint
+    let fullText = text.trim();
+    if (files.length > 0) {
+      const names = files.map((f) => f.name).join(", ");
+      fullText = (fullText ? fullText + "\n\n" : "") + "[Attached: " + names + "]";
+      const textContent = files
+        .filter((f) => f.preview)
+        .map((f) => "--- " + f.name + " ---\n" + f.preview)
+        .join("\n\n");
+      if (textContent) fullText += "\n\n" + textContent;
+    }
     const filters = { salesRegion, state, county, planType, snpType, payor, planName };
-    const um  = { id: uid(), role: "user",      content: text, ts: new Date() };
+    const um  = { id: uid(), role: "user", content: text.trim() || "📎 " + files.map((f) => f.name).join(", "), attachments: [...files], ts: new Date() };
     const lid = uid();
     const lm  = { id: lid, role: "assistant", content: "", sources: [], loading: true, ts: new Date() };
     setMsgs((p) => [...p, um, lm]);
+    setFiles([]);
     setBusy(true);
     try {
-      const res = await queryDocuments(text, filters);
+      const res = await queryDocuments(fullText, filters);
       setMsgs((p) =>
         p.map((m) =>
           m.id === lid
@@ -660,18 +730,86 @@ function DocPlayground() {
         padding: "10px 20px", background: "#fff",
         borderTop: "1px solid #E2E8F0", flexShrink: 0,
       }}>
+        {/* Attached file chips — shown above the input box */}
+        {files.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+            {files.map((f) => (
+              <div key={f.id} style={{
+                display: "flex", alignItems: "center", gap: 6,
+                background: "#F5F3FF", border: "1px solid #DDD6FE",
+                borderRadius: 8, padding: "5px 10px", fontSize: 11,
+                maxWidth: 220,
+              }}>
+                <span style={{ fontSize: 14, flexShrink: 0 }}>{fileIcon(f.name)}</span>
+                <span style={{
+                  color: "#5B21B6", fontWeight: 500,
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1,
+                }}>
+                  {f.name}
+                </span>
+                <span style={{ color: "#A78BFA", fontSize: 10, flexShrink: 0 }}>{fmtSize(f.size)}</span>
+                <button
+                  onClick={() => removeFile(f.id)}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "#A78BFA", fontSize: 14, padding: 0, lineHeight: 1,
+                    flexShrink: 0, display: "flex", alignItems: "center",
+                  }}
+                  title="Remove"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Hidden file input */}
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept=".pdf,.csv,.txt,.json,.md,.png,.jpg,.jpeg,.gif,.webp,.xlsx,.docx"
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+
         <div style={{
           display: "flex", gap: 8, alignItems: "flex-end",
           background: "#F8FAFC", borderRadius: 12,
           border: "1.5px solid " + (busy ? "#7C3AED88" : "#E2E8F0"),
-          padding: "8px 14px", transition: "border-color .2s",
+          padding: "8px 10px 8px 14px", transition: "border-color .2s",
         }}>
+          {/* Paperclip upload button */}
+          <button
+            onClick={() => fileRef.current && fileRef.current.click()}
+            disabled={busy}
+            title="Attach files (PDF, CSV, TXT, images…)"
+            style={{
+              background: "none",
+              border: "1px solid " + (busy ? "#E2E8F0" : "#DDD6FE"),
+              borderRadius: 7, width: 32, height: 32,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: busy ? "not-allowed" : "pointer",
+              color: busy ? "#CBD5E1" : "#7C3AED",
+              flexShrink: 0, transition: "all .15s",
+              fontSize: 16,
+            }}
+            onMouseEnter={(e) => { if (!busy) e.currentTarget.style.background = "#F5F3FF"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "none"; }}
+          >
+            {/* Paperclip SVG */}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.41 17.41a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+            </svg>
+          </button>
+
           <textarea
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             disabled={busy}
             rows={1}
-            placeholder="Ask about EOC & Dental documents — exclusions, limits, coverage terms..."
+            placeholder={files.length > 0 ? "Add a message or send files as-is…" : "Ask about EOC & Dental documents — exclusions, limits, coverage terms..."}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault(); ask(query); setQuery("");
@@ -690,12 +828,12 @@ function DocPlayground() {
           />
           <button
             onClick={() => { ask(query); setQuery(""); }}
-            disabled={busy || !query.trim()}
+            disabled={busy || (!query.trim() && files.length === 0)}
             style={{
-              background: busy || !query.trim() ? "#E2E8F0" : "#7C3AED",
-              color: busy || !query.trim() ? "#94A3B8" : "#fff",
+              background: busy || (!query.trim() && files.length === 0) ? "#E2E8F0" : "#7C3AED",
+              color: busy || (!query.trim() && files.length === 0) ? "#94A3B8" : "#fff",
               border: "none", borderRadius: 8, padding: "7px 18px",
-              cursor: busy || !query.trim() ? "not-allowed" : "pointer",
+              cursor: busy || (!query.trim() && files.length === 0) ? "not-allowed" : "pointer",
               fontWeight: 700, fontSize: 12.5,
               flexShrink: 0, fontFamily: "inherit", transition: "all .15s",
             }}
@@ -704,7 +842,7 @@ function DocPlayground() {
           </button>
         </div>
         <p style={{ color: "#CBD5E1", fontSize: 9.5, marginTop: 5, textAlign: "center" }}>
-          Answers grounded in your plan documents · Enter to send
+          Attach PDFs, CSVs or images · Enter to send
         </p>
       </div>
     </div>
@@ -759,14 +897,8 @@ export default function App() {
             </span>
           </div>
 
-          {/* Right side: status + Integrate PC toggle */}
+          {/* Right side: Integrate PC toggle */}
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#8B5CF6" }}/>
-              <span style={{ color: "#64748B", fontSize: 11 }}>
-                {C.co} · {C.app}
-              </span>
-            </div>
 
             {/* Integrate PC toggle — purple */}
             <div
